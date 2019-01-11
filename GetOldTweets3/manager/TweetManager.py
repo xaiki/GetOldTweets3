@@ -84,7 +84,7 @@ class TweetManager:
                         continue
 
                     tweet.username = usernames[0]
-                    tweet.to = usernames[1] if len(usernames) == 2 else None
+                    tweet.to = usernames[1] if len(usernames) >= 2 else None  # take the first recipient if many
                     tweet.text = re.sub(r"\s+", " ", tweetPQ("p.js-tweet-text").text())\
                         .replace('# ', '#').replace('@ ', '@').replace('$ ', '$')
                     tweet.retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
