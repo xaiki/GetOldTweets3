@@ -3,6 +3,7 @@
 
 import os
 import sys
+import time
 if sys.version_info[0] < 3:
     raise Exception("Python 2.x is not supported. Please upgrade to 3.x")
 
@@ -23,3 +24,22 @@ def test_QuerySearch():
                                                .setMaxTweets(1)
     tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
     assert tweet.hashtags.lower() == '#europe #refugees'
+
+def test_MassFetchConcurrent():
+    time1 = time.time()
+    tweetCriteria = got.manager.TweetCriteria().setQuerySearch('#europe #refugees')\
+                                               .setSince("2015-05-01")\
+                                               .setUntil("2015-09-30")\
+                                               .setMaxTweets(200)
+    tweets1 = got.manager.ConcurrentTweetManager.getTweets(tweetCriteria, worker_count=5)
+    print("Time Needed Concurrent: {} Secs".format((time.time() - time1)))
+
+    time2 = time.time()
+    tweetCriteria = got.manager.TweetCriteria().setQuerySearch('#europe #refugees')\
+                                               .setSince("2015-05-01")\
+                                               .setUntil("2015-09-30")\
+                                               .setMaxTweets(200)
+    tweets2 = got.manager.TweetManager.getTweets(tweetCriteria)
+    print("Time Needed Non Concurrent: {} Secs".format((time.time() - time2)))
+
+    assert len(tweets1) == len(tweets2)
