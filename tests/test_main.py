@@ -27,18 +27,14 @@ def test_QuerySearch():
 
 def test_MassFetchConcurrent():
     time1 = time.time()
-    tweetCriteria = got.manager.TweetCriteria().setQuerySearch('#europe #refugees')\
-                                               .setSince("2015-05-01")\
-                                               .setUntil("2015-09-30")\
-                                               .setMaxTweets(200)
-    tweets1 = got.manager.ConcurrentTweetManager.getTweets(tweetCriteria, worker_count=5)
+    tweetCriteria = got.manager.TweetCriteria().setUsername("@realdonaldtrump").setMaxTweets(100).setSince("2018-01-01")
+    tweets1 = got.manager.ConcurrentTweetManager.getTweets(tweetCriteria,
+                                                           worker_count=5,
+                                                           forceMaxTweets=True,)
     print("Time Needed Concurrent: {} Secs".format((time.time() - time1)))
 
     time2 = time.time()
-    tweetCriteria = got.manager.TweetCriteria().setQuerySearch('#europe #refugees')\
-                                               .setSince("2015-05-01")\
-                                               .setUntil("2015-09-30")\
-                                               .setMaxTweets(200)
+    tweetCriteria = got.manager.TweetCriteria().setUsername("@realdonaldtrump").setMaxTweets(100).setSince("2018-01-01")
     tweets2 = got.manager.TweetManager.getTweets(tweetCriteria)
     print("Time Needed Non Concurrent: {} Secs".format((time.time() - time2)))
 

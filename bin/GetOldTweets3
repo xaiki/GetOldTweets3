@@ -43,6 +43,24 @@ if sys.version_info[0] < 3:
 
 import GetOldTweets3 as got
 
+
+def concatenate_concurrent_files(collected_directory, outputFileName):
+    from os import listdir
+    from os.path import isfile, join
+    file_paths = [collected_directory + "/" + f for f in listdir(collected_directory) if isfile(join(collected_directory, f))]
+
+    with open(outputFileName, "w+", encoding="utf8") as total_result_file:
+        total_result_file.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
+        for file_path in reversed(file_paths):
+            with open(file_path, "r", encoding="utf8") as file:
+                data = file.read().split("\n", 1)[1]
+                total_result_file.write(data)
+            os.remove(file_path)
+    os.removedirs(collected_directory)
+
+
+
+
 def main(argv):
     if len(argv) == 0:
         print('You must pass some parameters. Use \"-h\" to help.')
@@ -64,12 +82,18 @@ def main(argv):
                                               "maxtweets=",
                                               "lang=",
                                               "output=",
-                                              "debug"))
+                                              "debug",
+                                              "workers=",
+                                              "forcemaxtweets"))
 
         tweetCriteria = got.manager.TweetCriteria()
         outputFileName = "output_got.csv"
+        outputDirNameConcurrent = "output_got.csv_collected"
+        outputFileNameConcurrent = "{}_to_{}.csv"
 
         debug = False
+        force_max_tweets = False
+        workers = 1
         usernames = set()
         username_files = set()
         for opt, arg in opts:
@@ -107,9 +131,16 @@ def main(argv):
 
             elif opt == '--output':
                 outputFileName = arg
+                outputDirNameConcurrent = arg + "_collected"
 
             elif opt == '--debug':
                 debug = True
+
+            elif opt == '--workers':
+                workers = int(arg)
+
+            elif opt == '--forcemaxtweets':
+                force_max_tweets = True
 
         if debug:
             print(' '.join(sys.argv))
@@ -136,8 +167,12 @@ def main(argv):
             else:
                 tweetCriteria.username = usernames.pop()
 
-        outputFile = open(outputFileName, "w+", encoding="utf8")
-        outputFile.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
+        if workers > 1:
+            if not os.path.exists(outputDirNameConcurrent):
+                os.makedirs(outputDirNameConcurrent)
+        else:
+            outputFile = open(outputFileName, "w+", encoding="utf8")
+            outputFile.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
 
         cnt = 0
         def receiveBuffer(tweets):
@@ -167,8 +202,45 @@ def main(argv):
             else:
                 print(cnt, end=' ', flush=True)
 
+        def receiveBufferConcurrent(tweets):
+            nonlocal cnt
+
+            last_date = tweets[0].date.strftime("%Y-%m-%d")
+            first_date = tweets[len(tweets)-1].date.strftime("%Y-%m-%d")
+
+            file = open(outputDirNameConcurrent + "/" + outputFileNameConcurrent.format(first_date, last_date), "w+", encoding="utf8")
+            file.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
+
+            for t in tweets:
+                data_ = [t.date.strftime("%Y-%m-%d %H:%M:%S"),
+                         t.username,
+                         t.to or '',
+                         t.replies,
+                         t.retweets,
+                         t.favorites,
+                         '"' + t.text.replace('"', '""') + '"',
+                         t.geo,
+                         t.mentions,
+                         t.hashtags,
+                         t.id,
+                         t.permalink]
+                data_[:] = [i if isinstance(i, str) else str(i) for i in data_]
+                file.write(','.join(data_) + '\n')
+
+            file.flush()
+            file.close()
+            cnt += len(tweets)
+
+            if sys.stdout.isatty():
+                print("\rSaved %i" % cnt, end='', flush=True)
+            else:
+                print(cnt, end=' ', flush=True)
+
         print("Downloading tweets...")
-        got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
+        if workers > 1:
+            got.manager.ConcurrentTweetManager.getTweets(tweetCriteria, receiveBufferConcurrent, debug=debug, worker_count=workers, forceMaxTweets=force_max_tweets)
+        else:
+            got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
 
     except getopt.GetoptError as err:
         print('Arguments parser error, try -h')
@@ -182,10 +254,14 @@ def main(argv):
         print(str(err))
 
     finally:
-        if "outputFile" in locals():
-            outputFile.close()
-            print()
-            print('Done. Output file generated "%s".' % outputFileName)
+        if "workers" in locals() and workers > 1:
+            concatenate_concurrent_files(outputDirNameConcurrent, outputFileName)
+        else:
+            if "outputFile" in locals():
+                outputFile.close()
+                print()
+                print('Done. Output file generated "%s".' % outputFileName)
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])
