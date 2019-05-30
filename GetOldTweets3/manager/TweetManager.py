@@ -164,8 +164,11 @@ class TweetManager:
             if usernames:
                 urlGetData += ' OR'.join(usernames)
 
-        if hasattr(tweetCriteria, 'near') and hasattr(tweetCriteria, 'within'):
-            urlGetData += ' near:%s within:%s' % (tweetCriteria.near, tweetCriteria.within)
+        if hasattr(tweetCriteria, 'within'):
+            if hasattr(tweetCriteria, 'near'):
+                urlGetData += ' near:"%s" within:%s' % (tweetCriteria.near, tweetCriteria.within)
+            elif hasattr(tweetCriteria, 'lat') and hasattr(tweetCriteria, 'lon'):
+                urlGetData += ' geocode:%f,%f,%s' % (tweetCriteria.lat, tweetCriteria.lon, tweetCriteria.within)
 
         if hasattr(tweetCriteria, 'since'):
             urlGetData += ' since:' + tweetCriteria.since
