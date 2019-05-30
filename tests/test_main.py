@@ -22,4 +22,5 @@ def test_QuerySearch():
                                                .setUntil("2015-09-30")\
                                                .setMaxTweets(1)
     tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
-    assert tweet.hashtags.lower() == '#europe #refugees'
+    assert '#europe' in tweet.hashtags.lower()
+    assert '#refugees' in tweet.hashtags.lower()
