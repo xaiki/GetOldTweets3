@@ -85,7 +85,8 @@ class TweetManager:
 
                     tweet.username = usernames[0]
                     tweet.to = usernames[1] if len(usernames) >= 2 else None  # take the first recipient if many
-                    tweet.text = re.sub(r"\s+", " ", tweetPQ("p.js-tweet-text").text())\
+                    rawtext = TweetManager.textify(tweetPQ("p.js-tweet-text").html())
+                    tweet.text = re.sub(r"\s+", " ", rawtext)\
                         .replace('# ', '#').replace('@ ', '@').replace('$ ', '$')
                     tweet.retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
                     tweet.favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
@@ -133,6 +134,53 @@ class TweetManager:
                 resultsAux = []
 
         return results
+
+    @staticmethod
+    def textify(html):
+        # Step 0, compile some convenient regular expressions
+        imgre = re.compile("^(.*?)(<img.*?/>)(.*)$", re.MULTILINE)
+        altre = re.compile("^.* alt=\"&#x([0-9A-Fa-f]+);\"", re.MULTILINE)
+        clsre = re.compile("^.* class=\"Emoji", re.MULTILINE)
+        htmlre = re.compile("^(.*?)(<.*?>)(.*)$", re.MULTILINE)
+
+        # Step 1, prepare a single-line string for re convenience
+        puc = chr(0xE001)
+        html = html.replace("\n", puc)
+
+        # Step 2, find images that represent emoji, replace them with the
+        # Unicode codepoint of the emoji.
+        text = ""
+        match = imgre.match(html)
+        while match:
+            text += match.group(1)
+            img = match.group(2)
+            html = match.group(3)
+
+            match = altre.match(img)
+            if match and clsre.match(img):
+                codepoint = int(match.group(1), 16)
+                char = chr(codepoint)
+                text += char
+            else:
+                text += " "
+
+            match = imgre.match(html)
+        text = text + html
+
+        # Step 3, discard any other markup that happens to be in the tweet.
+        # This makes textify() behave like tweetPQ.text()
+        html = text
+        text = ""
+        match = htmlre.match(html)
+        while match:
+            text += match.group(1)
+            html = match.group(3)
+            match = htmlre.match(html)
+        text = text + html
+
+        # Step 4, make the string multi-line again.
+        text = text.replace(puc, "\n")
+        return text
 
     @staticmethod
     def getJsonResponse(tweetCriteria, refreshCursor, cookieJar, proxy, useragent=None, debug=False):
