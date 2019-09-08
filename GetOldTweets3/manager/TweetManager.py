@@ -85,7 +85,7 @@ class TweetManager:
 
                     tweet.username = usernames[0]
                     tweet.to = usernames[1] if len(usernames) >= 2 else None  # take the first recipient if many
-                    rawtext = TweetManager.textify(tweetPQ("p.js-tweet-text").html())
+                    rawtext = TweetManager.textify(tweetPQ("p.js-tweet-text").html(), tweetCriteria.emoji)
                     tweet.text = re.sub(r"\s+", " ", rawtext)\
                         .replace('# ', '#').replace('@ ', '@').replace('$ ', '$')
                     tweet.retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
@@ -136,12 +136,16 @@ class TweetManager:
         return results
 
     @staticmethod
-    def textify(html):
+    def textify(html, emoji):
+        """Given a chunk of text with embedded Twitter HTML markup, replace
+        emoji images with appropriate emoji markup, replace links with the original
+        URIs, and discard all other markup.
+        """
         # Step 0, compile some convenient regular expressions
-        imgre = re.compile("^(.*?)(<img.*?/>)(.*)$", re.MULTILINE)
-        altre = re.compile("^.* alt=\"&#x([0-9A-Fa-f]+);\"", re.MULTILINE)
-        clsre = re.compile("^.* class=\"Emoji", re.MULTILINE)
-        htmlre = re.compile("^(.*?)(<.*?>)(.*)$", re.MULTILINE)
+        imgre = re.compile("^(.*?)(<img.*?/>)(.*)$")
+        charre = re.compile("^&#x([^;]+);(.*)$")
+        htmlre = re.compile("^(.*?)(<.*?>)(.*)$")
+        are = re.compile("^(.*?)(<a href=[^>]+>(.*?)</a>)(.*)$")
 
         # Step 1, prepare a single-line string for re convenience
         puc = chr(0xE001)
@@ -156,18 +160,45 @@ class TweetManager:
             img = match.group(2)
             html = match.group(3)
 
-            match = altre.match(img)
-            if match and clsre.match(img):
-                codepoint = int(match.group(1), 16)
-                char = chr(codepoint)
-                text += char
+            attr = TweetManager.parse_attributes(img)
+            if emoji == "unicode":
+                chars = attr["alt"]
+                match = charre.match(chars)
+                while match:
+                    text += chr(int(match.group(1),16))
+                    chars = match.group(2)
+                    match = charre.match(chars)
+            elif emoji == "named":
+                text += "Emoji[" + attr['title'] + "]"
             else:
                 text += " "
 
             match = imgre.match(html)
         text = text + html
 
-        # Step 3, discard any other markup that happens to be in the tweet.
+        # Step 3, find links and replace them with the actual URL
+        html = text
+        text = ""
+        match = are.match(html)
+        while match:
+            text += match.group(1)
+            link = match.group(2)
+            linktext = match.group(3)
+            html = match.group(4)
+
+            attr = TweetManager.parse_attributes(link)
+            if "u-hidden" in attr["class"]:
+                pass
+            elif "data-expanded-url" in attr \
+               and "twitter-timeline-link" in attr["class"]:
+                text += attr['data-expanded-url']
+            else:
+                text += link
+
+            match = are.match(html)
+        text = text + html
+
+        # Step 4, discard any other markup that happens to be in the tweet.
         # This makes textify() behave like tweetPQ.text()
         html = text
         text = ""
@@ -178,9 +209,31 @@ class TweetManager:
             match = htmlre.match(html)
         text = text + html
 
-        # Step 4, make the string multi-line again.
+        # Step 5, make the string multi-line again.
         text = text.replace(puc, "\n")
         return text
+
+    @staticmethod
+    def parse_attributes(markup):
+        """Given markup that begins with a start tag, parse out the tag name
+        and the attributes. Return them in a dictionary.
+        """
+        gire = re.compile("^<([^\s]+?)(.*?)>.*")
+        attre = re.compile("^.*?([^\s]+?)=\"(.*?)\"(.*)$")
+        attr = {}
+
+        match = gire.match(markup)
+        if match:
+            attr['*tag'] = match.group(1)
+            markup = match.group(2)
+
+            match = attre.match(markup)
+            while match:
+                attr[match.group(1)] = match.group(2)
+                markup = match.group(3)
+                match = attre.match(markup)
+
+        return attr
 
     @staticmethod
     def getJsonResponse(tweetCriteria, refreshCursor, cookieJar, proxy, useragent=None, debug=False):
