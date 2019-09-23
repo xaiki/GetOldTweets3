@@ -5,6 +5,7 @@ class TweetCriteria:
         self.maxTweets = 0
         self.topTweets = False
         self.within = "15mi"
+        self.emoji = "ignore"
 
     def setUsername(self, username):
         """Set username(s) of tweets author(s)
@@ -90,6 +91,15 @@ class TweetCriteria:
         Lang : str
         """
         self.lang = Lang
+        return self
+
+    def setEmoji(self, Emoji):
+        """Set emoji style. Style must be one of 'ignore', 'unicode', or 'name'.
+        Parameters
+        ----------
+        Emoji : str
+        """
+        self.emoji = Emoji
         return self
 
     def setTopTweets(self, topTweets):

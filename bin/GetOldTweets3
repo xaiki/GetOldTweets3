@@ -67,6 +67,7 @@ def main(argv):
                                               "maxtweets=",
                                               "lang=",
                                               "output=",
+                                              "emoji=",
                                               "debug"))
 
         tweetCriteria = got.manager.TweetCriteria()
@@ -132,6 +133,12 @@ def main(argv):
 
             elif opt == '--lang':
                 tweetCriteria.lang = arg
+
+            elif opt == '--emoji':
+                if arg in [ "ignore", "unicode", "named" ]:
+                    tweetCriteria.emoji = arg
+                else:
+                    raise Exception("Invalid option, --emoji must be one of 'ignore', 'unicode', 'or named'.")
 
             elif opt == '--output':
                 outputFileName = arg
