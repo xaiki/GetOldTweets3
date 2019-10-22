@@ -99,8 +99,7 @@ class TweetManager:
                     tweet.date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc)
                     tweet.formatted_date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc)\
                                                             .strftime("%a %b %d %X +0000 %Y")
-                    tweet.mentions = " ".join(re.compile('(@\\w*)').findall(tweet.text))
-                    tweet.hashtags = " ".join(re.compile('(#\\w*)').findall(tweet.text))
+                    tweet.hashtags, tweet.mentions = TweetManager.getHashtagsAndMentions(tweetPQ)
 
                     geoSpan = tweetPQ('span.Tweet-geo')
                     if len(geoSpan) > 0:
@@ -134,6 +133,39 @@ class TweetManager:
                 resultsAux = []
 
         return results
+
+    @staticmethod 
+    def getHashtagsAndMentions(tweetPQ):
+        """Given a PyQuery instance of a tweet (tweetPQ) getHashtagsAndMentions
+        gets the hashtags and mentions from a tweet using the tweet's
+        anchor tags rather than parsing a tweet's text for words begining
+        with '#'s and '@'s. All hashtags are wrapped in anchor tags with an href
+        attribute of the form '/hashtag/{hashtag name}?...' and all mentions are
+        wrapped in anchor tags with an href attribute of the form '/{mentioned username}'.
+        """
+        anchorTags = tweetPQ("p.js-tweet-text")("a")
+        hashtags = []
+        mentions = []
+        for tag in anchorTags:
+            tagPQ = PyQuery(tag)
+            url = tagPQ.attr("href")
+            if url is None or len(url) == 0 or url[0] != "/":
+                continue
+
+            # Mention anchor tags have a data-mentioned-user-id
+            # attribute. 
+            if not tagPQ.attr("data-mentioned-user-id") is None:
+                mentions.append("@" + url[1:])
+                continue
+
+            hashtagMatch = re.match('/hashtag/\w+', url)
+            if hashtagMatch is None:
+                continue
+
+            hashtag = hashtagMatch.group().replace("/hashtag/", "#")
+            hashtags.append(hashtag)
+
+        return (" ".join(hashtags), " ".join(mentions))
 
     @staticmethod
     def textify(html, emoji):
