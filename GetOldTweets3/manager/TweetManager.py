@@ -187,13 +187,16 @@ class TweetManager:
             html = match.group(4)
 
             attr = TweetManager.parse_attributes(link)
-            if "u-hidden" in attr["class"]:
+            try:   
+                if "u-hidden" in attr["class"]:
+                    pass
+                elif "data-expanded-url" in attr \
+                and "twitter-timeline-link" in attr["class"]:
+                    text += attr['data-expanded-url']
+                else:
+                    text += link
+            except:
                 pass
-            elif "data-expanded-url" in attr \
-               and "twitter-timeline-link" in attr["class"]:
-                text += attr['data-expanded-url']
-            else:
-                text += link
 
             match = are.match(html)
         text = text + html
