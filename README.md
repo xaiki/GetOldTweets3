@@ -35,9 +35,9 @@ GetOldTweets3 --querysearch "europe refugees" --maxtweets 10
 GetOldTweets3 --username "barackobama" --toptweets --maxtweets 10
 ```
 
-**Example 3 - Get tweets by the username and bound dates** (until date is not included):
+**Example 3 - Get tweets by the username and bound dates** (until date is not included) **and preserve emojis as unicode:**
 ```bash
-GetOldTweets3 --username "barackobama" --since 2015-09-10 --until 2015-09-12 --maxtweets 10
+GetOldTweets3 --username "barackobama" --since 2015-09-10 --until 2015-09-12 --maxtweets 10 --emoji unicode
 ```
 
 **Example 4 - Get tweets by several usernames:**
@@ -109,12 +109,13 @@ tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
 print(tweet.text)
 ```
 
-**Get tweets by username and bound dates:**
+**Get tweets by username and bound dates and preserve emojis as unicode:**
 ``` python
 tweetCriteria = got.manager.TweetCriteria().setUsername("barackobama")\
                                            .setSince("2015-09-10")\
                                            .setUntil("2016-01-01")\
-                                           .setMaxTweets(1)
+                                           .setMaxTweets(1)\
+                                           .setEmoji("unicode")
 tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
 print(tweet.text)
 ```
