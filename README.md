@@ -25,45 +25,40 @@ or `pip install -e git+https://github.com/Mottl/GetOldTweets3#egg=GetOldTweets3`
 GetOldTweets3 -h
 ``` 
 
-**Get tweets by username:**
-``` bash
-GetOldTweets3 --username "barackobama" --maxtweets 1
+**Example 1 - Get tweets by query search:**
+```bash
+GetOldTweets3 --querysearch "europe refugees" --maxtweets 10
 ```
 
-**Get tweets by several usernames** (use multiple --username options or a comma/space separated list):
-``` bash
-GetOldTweets3 --username "BarackObama,AngelaMerkeICDU" --username "WhiteHouse" --maxtweets 1
+**Example 1 - Get the last 10 top tweets by username:**
+```bash
+GetOldTweets3 --username "barackobama" --toptweets --maxtweets 10
+```
+
+**Example 3 - Get tweets by the username and bound dates** (until date is not included) **and preserve emojis as unicode:**
+```bash
+GetOldTweets3 --username "barackobama" --since 2015-09-10 --until 2015-09-12 --maxtweets 10 --emoji unicode
+```
+
+**Example 4 - Get tweets by several usernames:**
+```bash
+GetOldTweets3 --username "BarackObama,AngelaMerkeICDU" --usernames-from-file userlist.txt --maxtweets 10
 ```
 (check https://github.com/Mottl/influencers for some prepared lists of usernames)
 
-**Get top tweets from users specified in files and also specific users:**
-``` bash
-GetOldTweets3 --usernames-from-file userlist.txt --usernames-from-file additinal_list.txt --username "barackobama,whitehouse" --toptweets
+**Example 5 - Get tweets by language:**
+```bash
+GetOldTweets3 --querysearch "bitcoin" --lang cn --maxtweets 10
 ```
 
-**Get tweets by a query search**:
-``` bash
-GetOldTweets3 --querysearch "europe refugees" --maxtweets 1
+**Example 6 - Get tweets by place:**
+```bash
+GetOldTweets3 --querysearch "bitcoin" --near "Berlin, Germany" --within 25km --maxtweets 10
 ```
 
-**Get tweets by a username and bound dates:**
-``` bash
-GetOldTweets3 --username "barackobama" --since 2015-09-10 --until 2015-09-12 --maxtweets 1
-```
-
-**Get the last 10 top tweets by a username:**
-``` bash
-GetOldTweets3 --username "barackobama" --maxtweets 10 --toptweets
-```
-
-**Get tweets by a language:**
-``` bash
-GetOldTweets3 --querysearch "bitcoin" --maxtweets 10 --lang cn
-```
-
-**Get tweets by location:**
-``` bash
-GetOldTweets3 --querysearch "bitcoin" --near "Berlin, Germany" --within 15mi
+**Example 7 - Get tweets by geo coordinates:**
+```bash
+GetOldTweets3 --querysearch "museum" --near "55.75, 37.61" --within 40km --maxtweets 10
 ```
 
 ## Python classes
@@ -114,12 +109,13 @@ tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
 print(tweet.text)
 ```
 
-**Get tweets by username and bound dates:**
+**Get tweets by username and bound dates and preserve emojis as unicode:**
 ``` python
 tweetCriteria = got.manager.TweetCriteria().setUsername("barackobama")\
                                            .setSince("2015-09-10")\
                                            .setUntil("2016-01-01")\
-                                           .setMaxTweets(1)
+                                           .setMaxTweets(1)\
+                                           .setEmoji("unicode")
 tweet = got.manager.TweetManager.getTweets(tweetCriteria)[0]
 print(tweet.text)
 ```

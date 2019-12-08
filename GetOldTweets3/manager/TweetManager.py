@@ -85,7 +85,8 @@ class TweetManager:
 
                     tweet.username = usernames[0]
                     tweet.to = usernames[1] if len(usernames) >= 2 else None  # take the first recipient if many
-                    tweet.text = re.sub(r"\s+", " ", tweetPQ("p.js-tweet-text").text())\
+                    rawtext = TweetManager.textify(tweetPQ("p.js-tweet-text").html(), tweetCriteria.emoji)
+                    tweet.text = re.sub(r"\s+", " ", rawtext)\
                         .replace('# ', '#').replace('@ ', '@').replace('$ ', '$')
                     tweet.retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
                     tweet.favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
@@ -98,8 +99,7 @@ class TweetManager:
                     tweet.date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc)
                     tweet.formatted_date = datetime.datetime.fromtimestamp(dateSec, tz=datetime.timezone.utc)\
                                                             .strftime("%a %b %d %X +0000 %Y")
-                    tweet.mentions = " ".join(re.compile('(@\\w*)').findall(tweet.text))
-                    tweet.hashtags = " ".join(re.compile('(#\\w*)').findall(tweet.text))
+                    tweet.hashtags, tweet.mentions = TweetManager.getHashtagsAndMentions(tweetPQ)
 
                     geoSpan = tweetPQ('span.Tweet-geo')
                     if len(geoSpan) > 0:
@@ -134,6 +134,142 @@ class TweetManager:
 
         return results
 
+    @staticmethod 
+    def getHashtagsAndMentions(tweetPQ):
+        """Given a PyQuery instance of a tweet (tweetPQ) getHashtagsAndMentions
+        gets the hashtags and mentions from a tweet using the tweet's
+        anchor tags rather than parsing a tweet's text for words begining
+        with '#'s and '@'s. All hashtags are wrapped in anchor tags with an href
+        attribute of the form '/hashtag/{hashtag name}?...' and all mentions are
+        wrapped in anchor tags with an href attribute of the form '/{mentioned username}'.
+        """
+        anchorTags = tweetPQ("p.js-tweet-text")("a")
+        hashtags = []
+        mentions = []
+        for tag in anchorTags:
+            tagPQ = PyQuery(tag)
+            url = tagPQ.attr("href")
+            if url is None or len(url) == 0 or url[0] != "/":
+                continue
+
+            # Mention anchor tags have a data-mentioned-user-id
+            # attribute. 
+            if not tagPQ.attr("data-mentioned-user-id") is None:
+                mentions.append("@" + url[1:])
+                continue
+
+            hashtagMatch = re.match('/hashtag/\w+', url)
+            if hashtagMatch is None:
+                continue
+
+            hashtag = hashtagMatch.group().replace("/hashtag/", "#")
+            hashtags.append(hashtag)
+
+        return (" ".join(hashtags), " ".join(mentions))
+
+    @staticmethod
+    def textify(html, emoji):
+        """Given a chunk of text with embedded Twitter HTML markup, replace
+        emoji images with appropriate emoji markup, replace links with the original
+        URIs, and discard all other markup.
+        """
+        # Step 0, compile some convenient regular expressions
+        imgre = re.compile("^(.*?)(<img.*?/>)(.*)$")
+        charre = re.compile("^&#x([^;]+);(.*)$")
+        htmlre = re.compile("^(.*?)(<.*?>)(.*)$")
+        are = re.compile("^(.*?)(<a href=[^>]+>(.*?)</a>)(.*)$")
+
+        # Step 1, prepare a single-line string for re convenience
+        puc = chr(0xE001)
+        html = html.replace("\n", puc)
+
+        # Step 2, find images that represent emoji, replace them with the
+        # Unicode codepoint of the emoji.
+        text = ""
+        match = imgre.match(html)
+        while match:
+            text += match.group(1)
+            img = match.group(2)
+            html = match.group(3)
+
+            attr = TweetManager.parse_attributes(img)
+            if emoji == "unicode":
+                chars = attr["alt"]
+                match = charre.match(chars)
+                while match:
+                    text += chr(int(match.group(1),16))
+                    chars = match.group(2)
+                    match = charre.match(chars)
+            elif emoji == "named":
+                text += "Emoji[" + attr['title'] + "]"
+            else:
+                text += " "
+
+            match = imgre.match(html)
+        text = text + html
+
+        # Step 3, find links and replace them with the actual URL
+        html = text
+        text = ""
+        match = are.match(html)
+        while match:
+            text += match.group(1)
+            link = match.group(2)
+            linktext = match.group(3)
+            html = match.group(4)
+
+            attr = TweetManager.parse_attributes(link)
+            try:   
+                if "u-hidden" in attr["class"]:
+                    pass
+                elif "data-expanded-url" in attr \
+                and "twitter-timeline-link" in attr["class"]:
+                    text += attr['data-expanded-url']
+                else:
+                    text += link
+            except:
+                pass
+
+            match = are.match(html)
+        text = text + html
+
+        # Step 4, discard any other markup that happens to be in the tweet.
+        # This makes textify() behave like tweetPQ.text()
+        html = text
+        text = ""
+        match = htmlre.match(html)
+        while match:
+            text += match.group(1)
+            html = match.group(3)
+            match = htmlre.match(html)
+        text = text + html
+
+        # Step 5, make the string multi-line again.
+        text = text.replace(puc, "\n")
+        return text
+
+    @staticmethod
+    def parse_attributes(markup):
+        """Given markup that begins with a start tag, parse out the tag name
+        and the attributes. Return them in a dictionary.
+        """
+        gire = re.compile("^<([^\s]+?)(.*?)>.*")
+        attre = re.compile("^.*?([^\s]+?)=\"(.*?)\"(.*)$")
+        attr = {}
+
+        match = gire.match(markup)
+        if match:
+            attr['*tag'] = match.group(1)
+            markup = match.group(2)
+
+            match = attre.match(markup)
+            while match:
+                attr[match.group(1)] = match.group(2)
+                markup = match.group(3)
+                match = attre.match(markup)
+
+        return attr
+
     @staticmethod
     def getJsonResponse(tweetCriteria, refreshCursor, cookieJar, proxy, useragent=None, debug=False):
         """Invoke an HTTP query to Twitter.
@@ -164,8 +300,11 @@ class TweetManager:
             if usernames:
                 urlGetData += ' OR'.join(usernames)
 
-        if hasattr(tweetCriteria, 'near') and hasattr(tweetCriteria, 'within'):
-            urlGetData += ' near:%s within:%s' % (tweetCriteria.near, tweetCriteria.within)
+        if hasattr(tweetCriteria, 'within'):
+            if hasattr(tweetCriteria, 'near'):
+                urlGetData += ' near:"%s" within:%s' % (tweetCriteria.near, tweetCriteria.within)
+            elif hasattr(tweetCriteria, 'lat') and hasattr(tweetCriteria, 'lon'):
+                urlGetData += ' geocode:%f,%f,%s' % (tweetCriteria.lat, tweetCriteria.lon, tweetCriteria.within)
 
         if hasattr(tweetCriteria, 'since'):
             urlGetData += ' since:' + tweetCriteria.since
