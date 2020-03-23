@@ -61,6 +61,28 @@ GetOldTweets3 --querysearch "bitcoin" --near "Berlin, Germany" --within 25km --m
 GetOldTweets3 --querysearch "museum" --near "55.75, 37.61" --within 40km --maxtweets 10
 ```
 
+**Example 8 - Get tweets by minimum number of replies:**
+```bash
+GetOldTweets3 --querysearch "bitcoin" --minreplies 10 --maxtweets 10
+```
+
+**Example 9 - Get tweets by minimum number of favorites:**
+```bash
+GetOldTweets3 --querysearch "bitcoin" --minfaves 10 --maxtweets 10
+```
+
+**Example 10 - Get tweets by minimum number of retweets:**
+```bash
+GetOldTweets3 --querysearch "bitcoin" --minretweets 10 --maxtweets 10
+```
+
+**Example 11 - Get tweets by excluding tweets with any word of a list:**
+```bash
+GetOldTweets3 --querysearch "bitcoin" --exclude-words-from-file excludewords.txt --maxtweets 10
+```
+
+where words to exclude are separated by a whitespace character in the `excludewords.txt` file.
+
 ## Python classes
 - **Tweet:** Model class that describes a specific tweet.
   - id (str)

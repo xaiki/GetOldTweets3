@@ -26,6 +26,17 @@ class TweetCriteria:
         self.username = username
         return self
 
+    def setExcludeWords(self, excludeWords):
+        """Set word(s) to exclude from tweets
+        Parameters
+        ----------
+        excludeWords : list or iterable
+
+        Example: ["red", "blue", "yellow", "green"]
+        """
+        self.excludeWords = excludeWords
+        return self
+
     def setSince(self, since):
         """Set a lower bound date in UTC
         Parameters
@@ -44,6 +55,36 @@ class TweetCriteria:
                 format: "yyyy-mm-dd"
         """
         self.until = until
+        return self
+
+    def setMinReplies(self, minReplies):
+        """Set the minimum number of replies of tweets to search
+        Parameters
+        ----------
+        minReplies : str,
+                     for example: 42
+        """
+        self.minReplies = minReplies
+        return self
+
+    def setMinFaves(self, minFaves):
+        """Set the minimum number of favorites of tweets to search
+        Parameters
+        ----------
+        minFaves : str,
+                   for example: 42
+        """
+        self.minFaves = minFaves
+        return self
+
+    def setMinRetweets(self, minRetweets):
+        """Set the minimum number of retweets of tweets to search
+        Parameters
+        ----------
+        minRetweets : str,
+                      for example: 42
+        """
+        self.minRetweets = minRetweets
         return self
 
     def setNear(self, near):
