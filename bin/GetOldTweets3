@@ -19,6 +19,7 @@
                   --emoji: "ignore" (the default, discards emojis), "unicode"
                            or "named" (replaces with "Emoji[Name of emoji]")
                  --output: a filename to export the results (default is "output_got.csv")
+                           Pass a '.gz' suffix to have it gzipped.
                   --debug: outputs debug information to standard error stream
 
 Examples:
@@ -57,6 +58,9 @@ GetOldTweets3 --querysearch "bitcoin" --minretweets 10 --maxtweets 10
 GetOldTweets3 --querysearch "bitcoin" --exclude-words-from-file excludewords.txt --maxtweets 10
 """
 
+from functools import partial
+import csv
+import gzip
 import os, sys, re, getopt
 import traceback
 
@@ -211,39 +215,48 @@ def main(argv):
             else:
                 tweetCriteria.username = usernames.pop()
 
-        outputFile = open(outputFileName, "w+", encoding="utf8")
-        outputFile.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
+        if outputFileName.endswith('.gz'):
+            get_output_file = partial(gzip.open, outputFileName, "wt")
+        else:
+            get_output_file = partial(
+                open, outputFileName, "w+", encoding="utf8")
 
-        cnt = 0
-        def receiveBuffer(tweets):
-            nonlocal cnt
+        with get_output_file() as outputFile:
+            csvFile = csv.writer(outputFile, lineterminator='\n')
+            csvFile.writerow(['date', 'username', 'to', 'replies', 'retweets',
+                              'favorites', 'text', 'geo', 'mentions', 'hashtags',
+                              'id', 'permalink'])
 
-            for t in tweets:
-                data = [t.date.strftime("%Y-%m-%d %H:%M:%S"),
-                    t.username,
-                    t.to or '',
-                    t.replies,
-                    t.retweets,
-                    t.favorites,
-                    '"'+t.text.replace('"','""')+'"',
-                    t.geo,
-                    t.mentions,
-                    t.hashtags,
-                    t.id,
-                    t.permalink]
-                data[:] = [i if isinstance(i, str) else str(i) for i in data]
-                outputFile.write(','.join(data) + '\n')
+            cnt = 0
+            def receiveBuffer(tweets):
+                nonlocal cnt
 
-            outputFile.flush()
-            cnt += len(tweets)
+                for t in tweets:
+                    data = [t.date.strftime("%Y-%m-%d %H:%M:%S"),
+                        t.username,
+                        t.to or '',
+                        t.replies,
+                        t.retweets,
+                        t.favorites,
+                        t.text,
+                        t.geo,
+                        t.mentions,
+                        t.hashtags,
+                        t.id,
+                        t.permalink]
 
-            if sys.stdout.isatty():
-                print("\rSaved %i"%cnt, end='', flush=True)
-            else:
-                print(cnt, end=' ', flush=True)
+                    csvFile.writerow(map(str, data))
 
-        print("Downloading tweets...")
-        got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
+                outputFile.flush()
+                cnt += len(tweets)
+
+                if sys.stdout.isatty():
+                    print("\rSaved %i"%cnt, end='', flush=True)
+                else:
+                    print(cnt, end=' ', flush=True)
+
+            print("Downloading tweets...")
+            got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
 
     except getopt.GetoptError as err:
         print('Arguments parser error, try -h')
