@@ -185,9 +185,7 @@ def main(argv):
                 open, outputFileName, "w+", encoding="utf8")
 
         with get_output_file() as outputFile:
-
-            csvFile = csv.writer(outputFile)
-
+            csvFile = csv.writer(outputFile, lineterminator='\n')
             csvFile.writerow(['date', 'username', 'to', 'replies', 'retweets',
                               'favorites', 'text', 'geo', 'mentions', 'hashtags',
                               'id', 'permalink'])
