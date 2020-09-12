@@ -214,38 +214,12 @@ def main(argv):
             outputFile.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
 
         cnt = 0
+
         def receiveBuffer(tweets):
             nonlocal cnt
 
-            for t in tweets:
-                data = [t.date.strftime("%Y-%m-%d %H:%M:%S"),
-                    t.username,
-                    t.to or '',
-                    t.replies,
-                    t.retweets,
-                    t.favorites,
-                    '"'+t.text.replace('"','""')+'"',
-                    t.geo,
-                    t.mentions,
-                    t.hashtags,
-                    t.id,
-                    t.permalink]
-                data[:] = [i if isinstance(i, str) else str(i) for i in data]
-                outputFile.write(','.join(data) + '\n')
-
-            outputFile.flush()
-            cnt += len(tweets)
-
-            if sys.stdout.isatty():
-                print("\rSaved %i"%cnt, end='', flush=True)
-            else:
-                print(cnt, end=' ', flush=True)
-
-        def receiveBufferConcurrent(tweets):
-            nonlocal cnt
-
             last_date = tweets[0].date.strftime("%Y-%m-%d")
-            first_date = tweets[len(tweets)-1].date.strftime("%Y-%m-%d")
+            first_date = tweets[-1].date.strftime("%Y-%m-%d")
 
             file = open(outputDirNameConcurrent + "/" + outputFileNameConcurrent.format(first_date, last_date), "w+", encoding="utf8")
             file.write('date,username,to,replies,retweets,favorites,text,geo,mentions,hashtags,id,permalink\n')
@@ -276,10 +250,7 @@ def main(argv):
                 print(cnt, end=' ', flush=True)
 
         print("Downloading tweets...")
-        if workers > 1:
-            got.manager.ConcurrentTweetManager.getTweets(tweetCriteria, receiveBufferConcurrent, debug=debug, worker_count=workers, forceMaxTweets=force_max_tweets)
-        else:
-            got.manager.TweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug)
+        got.manager.ConcurrentTweetManager.getTweets(tweetCriteria, receiveBuffer, debug=debug, worker_count=workers, forceMaxTweets=force_max_tweets)
 
     except getopt.GetoptError as err:
         print('Arguments parser error, try -h')
