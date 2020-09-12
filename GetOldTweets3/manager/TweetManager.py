@@ -158,7 +158,7 @@ class TweetManager:
                 mentions.append("@" + url[1:])
                 continue
 
-            hashtagMatch = re.match('/hashtag/\w+', url)
+            hashtagMatch = re.match(r'/hashtag/\w+', url)
             if hashtagMatch is None:
                 continue
 
@@ -253,8 +253,8 @@ class TweetManager:
         """Given markup that begins with a start tag, parse out the tag name
         and the attributes. Return them in a dictionary.
         """
-        gire = re.compile("^<([^\s]+?)(.*?)>.*")
-        attre = re.compile("^.*?([^\s]+?)=\"(.*?)\"(.*)$")
+        gire = re.compile(r"^<([^\s]+?)(.*?)>.*")
+        attre = re.compile(r"^.*?([^\s]+?)=\"(.*?)\"(.*)$")
         attr = {}
 
         match = gire.match(markup)
